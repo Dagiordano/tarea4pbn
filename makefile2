@@ -1,0 +1,53 @@
+EXE = main
+COMP = g++
+FLAGS = -Wall -Wextra -Wundef -Werror -Wunitialized -Winit-self
+
+# Comodin para varias librerías
+BLOQUES = func.o # Aca uno agrega las librerías
+
+LIBRERIA = libfunc.so # Es clave que parta por lib
+
+# Ejecutable final
+$(EXE): $(EXE).o $(BLOQUES)
+#	$(COMP) $(FLAGS) -o $(EXE) $(EXE).o $(BLOQUES)
+  $(COMP) $(FLAGS) $(EXE).o -o $(EXE) -Wl,-rpath=/usr/lib -L/usr/lib -lfunc
+
+# Wrap
+WRAP = func_wrap.cxx
+
+# Objeto main()	
+$(EXE).o: $(EXE).cpp
+  $(COMP) $(FLAGS) -c $(EXE).cpp -o $(EXE).o
+
+# Librerías (Etapa 0 para pyton)
+%.o: %.cpp %.h
+#                          .cpp   objeto
+  $(COMP) $(FLAGS) -fPIC -c $<   -o $@
+
+# Regla de librería compartida 
+lib: $(BLOQUES)
+  $(COMP) -shared $^ -o $(LIBRERIA)
+  sudo mv $(LIBRERIA) /usr/lib
+
+# Regla wrap de swig (Etapa 1 para pyton)
+wrap: func.i func.h
+  swig -python -c++ func.i
+
+# Regla librería final (Etapa 2 para pyton)
+_libfunc.so: $(WRAP) $(BLOQUES)
+  $(COMP) $(FLAGS) -fPIC -c $(WRAP) -o lib_wrap.o -I/usr/include/python3.10/
+  $(COMP) -shared lib_wrap.o $(BLOQUES) -o _libfunc.so
+
+
+# Utilitarios
+clean:
+  rm -f *.o
+  rm -f $(EXE)
+
+run: scr $(EXE)
+  ./$(EXE)
+
+all: scr clean $(EXE)
+
+scr:
+  clear
